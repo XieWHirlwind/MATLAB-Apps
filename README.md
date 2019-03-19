@@ -1,2 +1,2 @@
-# MATLAB_CODE
-一些MATLAB代码的储存地
+# Two Species
+两种群竞争模型
