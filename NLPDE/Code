@@ -1,0 +1,220 @@
+classdef NLPDE < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        NLPDESolutionbyWenhaoXieUIFigure  matlab.ui.Figure
+        UIAxes               matlab.ui.control.UIAxes
+        Label                matlab.ui.control.Label
+        itertime             matlab.ui.control.NumericEditField
+        Label_2              matlab.ui.control.Label
+        n                    matlab.ui.control.NumericEditField
+        cal                  matlab.ui.control.Button
+        Label_3              matlab.ui.control.Label
+        watch                matlab.ui.control.Slider
+        lumdaEditFieldLabel  matlab.ui.control.Label
+        lumda                matlab.ui.control.NumericEditField
+        Label_4              matlab.ui.control.Label
+        iterstep             matlab.ui.control.Spinner
+        PS1Label             matlab.ui.control.Label
+        HelpButton           matlab.ui.control.Button
+    end
+
+    
+    properties (Access = private)
+        uxy % Description
+    end
+    
+
+    methods (Access = private)
+
+        % Button pushed function: cal
+        function calButtonPushed(app, event)
+            app.uxy=zeros(app.n.Value+1,app.n.Value+1,app.itertime.Value+1);
+            h=1/app.n.Value;new_u=zeros(app.n.Value+1,app.n.Value+1);
+            for p=1:app.itertime.Value
+                for i=2:app.n.Value
+                for j=2:app.n.Value
+                    q=(app.lumda.Value*h^2*exp(app.uxy(i,j,p))+app.uxy(i,j-1,p)+app.uxy(i,j+1,p)+app.uxy(i-1,j,p)+app.uxy(i+1,j,p))/4;
+                    %q=log(4*u(i,j)-(u(i,j-1)+u(i,j+1)+u(i-1,j)+u(i+1,j)))-c;
+                    new_u(i,j)=q;
+                end
+                end
+                app.uxy(:,:,p+1)=new_u;
+            end
+            [X,Y]=meshgrid(0:h:1);
+            grap=app.uxy(1:app.n.Value+1,1:app.n.Value+1,app.itertime.Value+1);
+            mesh(app.UIAxes,X,Y,grap); 
+            app.iterstep.Enable=1;
+            app.watch.Enable=1;
+            app.iterstep.Value=1+app.itertime.Value;
+            app.watch.Value=100;
+        end
+
+        % Value changing function: watch
+        function watchValueChanging(app, event)
+            value = event.Value;
+            [X,Y]=meshgrid(0:1/app.n.Value:1);
+            mesh(app.UIAxes,X,Y,app.uxy(1:app.n.Value+1,1:app.n.Value+1,1+ceil(value/100*(app.itertime.Value))));
+            app.iterstep.Value=1+ceil(value/100*(app.itertime.Value));
+        end
+
+        % Value changed function: iterstep
+        function iterstepValueChanged(app, event)
+            value = app.iterstep.Value;
+            [X,Y]=meshgrid(0:1/app.n.Value:1);
+            mesh(app.UIAxes,X,Y,app.uxy(1:app.n.Value+1,1:app.n.Value+1,value));
+            app.watch.Value=ceil(value/(1+app.itertime.Value)*100);
+        end
+
+        % Value changed function: itertime
+        function itertimeValueChanged(app, event)
+            value = app.itertime.Value;
+            app.iterstep.Limits=[1 value+1];
+            app.iterstep.Enable=0;
+            app.watch.Enable=0;
+        end
+
+        % Value changed function: n
+        function nValueChanged(app, event)
+            app.iterstep.Enable=0;
+            app.watch.Enable=0;
+        end
+
+        % Value changed function: lumda
+        function lumdaValueChanged(app, event)
+            app.iterstep.Enable=0;
+            app.watch.Enable=0;
+        end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            msgbox({'本程序使用有限差分法中的五点差分法，对待求解函数进行迭代，迭代公式为','u=(lumda*h^2*exp(u)+u_left+u_right+u_up+u_down)/4','其中h为分割步长，在某一点u的值根据其上下左右四个值进行差分迭代','迭代初值为零。','本程序为解决迭代法不收敛的问题而生','软件作者：Wenhao Xie'},'帮助')
+        end
+    end
+
+    % App initialization and construction
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create NLPDESolutionbyWenhaoXieUIFigure
+            app.NLPDESolutionbyWenhaoXieUIFigure = uifigure;
+            app.NLPDESolutionbyWenhaoXieUIFigure.Position = [100 100 579 629];
+            app.NLPDESolutionbyWenhaoXieUIFigure.Name = 'NLPDE Solution - by Wenhao Xie';
+            app.NLPDESolutionbyWenhaoXieUIFigure.Resize = 'off';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.NLPDESolutionbyWenhaoXieUIFigure);
+            title(app.UIAxes, 'u的三维图像')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            app.UIAxes.TitleFontWeight = 'bold';
+            app.UIAxes.Position = [57 173 456 429];
+
+            % Create Label
+            app.Label = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label.HorizontalAlignment = 'right';
+            app.Label.Position = [37 121 53 22];
+            app.Label.Text = '迭代次数';
+
+            % Create itertime
+            app.itertime = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.itertime.Limits = [1 Inf];
+            app.itertime.ValueChangedFcn = createCallbackFcn(app, @itertimeValueChanged, true);
+            app.itertime.Position = [105 121 100 22];
+            app.itertime.Value = 100;
+
+            % Create Label_2
+            app.Label_2 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_2.HorizontalAlignment = 'right';
+            app.Label_2.Position = [37 79 53 22];
+            app.Label_2.Text = '细分段数';
+
+            % Create n
+            app.n = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.n.ValueChangedFcn = createCallbackFcn(app, @nValueChanged, true);
+            app.n.Position = [105 79 100 22];
+            app.n.Value = 25;
+
+            % Create cal
+            app.cal = uibutton(app.NLPDESolutionbyWenhaoXieUIFigure, 'push');
+            app.cal.ButtonPushedFcn = createCallbackFcn(app, @calButtonPushed, true);
+            app.cal.Position = [220 36 100 24];
+            app.cal.Text = '计算';
+
+            % Create Label_3
+            app.Label_3 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_3.HorizontalAlignment = 'right';
+            app.Label_3.Position = [247 108 113 22];
+            app.Label_3.Text = '位置查看（百分比）';
+
+            % Create watch
+            app.watch = uislider(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.watch.ValueChangingFcn = createCallbackFcn(app, @watchValueChanging, true);
+            app.watch.Position = [381 117 150 3];
+            app.watch.Value = 100;
+
+            % Create lumdaEditFieldLabel
+            app.lumdaEditFieldLabel = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.lumdaEditFieldLabel.HorizontalAlignment = 'right';
+            app.lumdaEditFieldLabel.Position = [52 37 38 22];
+            app.lumdaEditFieldLabel.Text = 'lumda';
+
+            % Create lumda
+            app.lumda = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.lumda.ValueChangedFcn = createCallbackFcn(app, @lumdaValueChanged, true);
+            app.lumda.Position = [105 37 100 22];
+            app.lumda.Value = 10;
+
+            % Create Label_4
+            app.Label_4 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_4.HorizontalAlignment = 'right';
+            app.Label_4.Position = [363 49 53 22];
+            app.Label_4.Text = '位置查看';
+
+            % Create iterstep
+            app.iterstep = uispinner(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.iterstep.Limits = [1 101];
+            app.iterstep.RoundFractionalValues = 'on';
+            app.iterstep.ValueChangedFcn = createCallbackFcn(app, @iterstepValueChanged, true);
+            app.iterstep.Position = [431 49 100 22];
+            app.iterstep.Value = 1;
+
+            % Create PS1Label
+            app.PS1Label = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.PS1Label.Position = [385 18 146 22];
+            app.PS1Label.Text = 'PS:位置数值为迭代次数+1';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.NLPDESolutionbyWenhaoXieUIFigure, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Position = [1 1 40 22];
+            app.HelpButton.Text = 'Help';
+        end
+    end
+
+    methods (Access = public)
+
+        % Construct app
+        function app = NLPDE
+
+            % Create and configure components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.NLPDESolutionbyWenhaoXieUIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.NLPDESolutionbyWenhaoXieUIFigure)
+        end
+    end
+end
