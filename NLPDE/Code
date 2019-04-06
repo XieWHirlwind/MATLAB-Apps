@@ -3,20 +3,30 @@ classdef NLPDE < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         NLPDESolutionbyWenhaoXieUIFigure  matlab.ui.Figure
-        UIAxes               matlab.ui.control.UIAxes
-        Label                matlab.ui.control.Label
-        itertime             matlab.ui.control.NumericEditField
-        Label_2              matlab.ui.control.Label
-        n                    matlab.ui.control.NumericEditField
-        cal                  matlab.ui.control.Button
-        Label_3              matlab.ui.control.Label
-        watch                matlab.ui.control.Slider
-        lumdaEditFieldLabel  matlab.ui.control.Label
-        lumda                matlab.ui.control.NumericEditField
-        Label_4              matlab.ui.control.Label
-        iterstep             matlab.ui.control.Spinner
-        PS1Label             matlab.ui.control.Label
-        HelpButton           matlab.ui.control.Button
+        UIAxes                 matlab.ui.control.UIAxes
+        Label                  matlab.ui.control.Label
+        itertime               matlab.ui.control.NumericEditField
+        Label_2                matlab.ui.control.Label
+        n                      matlab.ui.control.NumericEditField
+        cal                    matlab.ui.control.Button
+        Label_3                matlab.ui.control.Label
+        watch                  matlab.ui.control.Slider
+        lumdaEditFieldLabel    matlab.ui.control.Label
+        lumda                  matlab.ui.control.NumericEditField
+        Label_4                matlab.ui.control.Label
+        iterstep               matlab.ui.control.Spinner
+        PS1Label               matlab.ui.control.Label
+        HelpButton             matlab.ui.control.Button
+        isconverge             matlab.ui.control.Label
+        lumdaEditFieldLabel_2  matlab.ui.control.Label
+        lumdamin               matlab.ui.control.NumericEditField
+        Label_5                matlab.ui.control.Label
+        lumdamax               matlab.ui.control.NumericEditField
+        outputimg              matlab.ui.control.Button
+        Label_6                matlab.ui.control.Label
+        itertimemax            matlab.ui.control.NumericEditField
+        Label_7                matlab.ui.control.Label
+        lumdasteplength        matlab.ui.control.NumericEditField
     end
 
     
@@ -31,6 +41,7 @@ classdef NLPDE < matlab.apps.AppBase
         function calButtonPushed(app, event)
             app.uxy=zeros(app.n.Value+1,app.n.Value+1,app.itertime.Value+1);
             h=1/app.n.Value;new_u=zeros(app.n.Value+1,app.n.Value+1);
+            is_converge=0;
             for p=1:app.itertime.Value
                 for i=2:app.n.Value
                 for j=2:app.n.Value
@@ -40,12 +51,23 @@ classdef NLPDE < matlab.apps.AppBase
                 end
                 end
                 app.uxy(:,:,p+1)=new_u;
+                if(abs((app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p+1)-app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p))/app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p+1))<1e-3)
+                    is_converge=1;
+                    break;
+                end
+            end
+            if(is_converge)
+                app.itertime.Value=p;
+                app.isconverge.Text='函数收敛！';
+            else
+                app.isconverge.Text='函数未运行至收敛点！';
             end
             [X,Y]=meshgrid(0:h:1);
             grap=app.uxy(1:app.n.Value+1,1:app.n.Value+1,app.itertime.Value+1);
             mesh(app.UIAxes,X,Y,grap); 
             app.iterstep.Enable=1;
             app.watch.Enable=1;
+            app.iterstep.Limits=[1 1+app.itertime.Value];
             app.iterstep.Value=1+app.itertime.Value;
             app.watch.Value=100;
         end
@@ -88,7 +110,54 @@ classdef NLPDE < matlab.apps.AppBase
 
         % Button pushed function: HelpButton
         function HelpButtonPushed(app, event)
-            msgbox({'本程序使用有限差分法中的五点差分法，对待求解函数进行迭代，迭代公式为','u=(lumda*h^2*exp(u)+u_left+u_right+u_up+u_down)/4','其中h为分割步长，在某一点u的值根据其上下左右四个值进行差分迭代','迭代初值为零。','本程序为解决迭代法不收敛的问题而生','软件作者：Wenhao Xie'},'帮助')
+            msgbox({ '本程序使用有限差分法中的五点差分法，对待求解函数进行迭代，迭代公式为'...
+                    ,'u=(lumda*h^2*exp(u)+u_left+u_right+u_up+u_down)/4'...
+                    ,'其中h为分割步长，在某一点u的值根据其上下左右四个值进行差分迭代'...
+                    ,'迭代初值为零。'...
+                    ,'本程序使用方法：'...
+                    ,'1.设置好“迭代次数”和“细分段数”，按“计算”按钮计算三维图像'...
+                    ,'2.若函数在设置的迭代次数内收敛（函数中心值迭代前后相差不到1%）'...
+                    ,'则“迭代次数”一栏的数值会变成函数判敛时的次数值'...
+                    ,'3.“位置查看（百分比）”与“位置查看”中的数据会同步更改，'...
+                    ,'可以通过拖动滑块或者直接修改数据的方式查看不同迭代次数下方程的解'...
+                    ,'4.下方两行为一键导出关系图像功能，可以在方程解收敛的范围内，'...
+                    ,'作出lumda与方程中心点取值值的关系图像'...
+                    ,'计算和导出的速度可能较慢，请不要着急！'...
+                    ,'若计算量过大程序卡死，可能需要强制退出MATLAB重新启动此程序'...
+                    ,''...
+                    ,'软件作者：Wenhao Xie 版本：v1.1'},'帮助')
+        end
+
+        % Button pushed function: outputimg
+        function outputimgButtonPushed(app, event)
+            lumdalist=app.lumdamin.Value:app.lumdasteplength.Value:app.lumdamax.Value;
+            ucenterlist=zeros(length(lumdalist));
+            for k=1:length(lumdalist)
+                app.uxy=zeros(app.n.Value+1,app.n.Value+1,app.itertime.Value+1);
+                h=1/app.n.Value;new_u=zeros(app.n.Value+1,app.n.Value+1);
+                is_converge=0;
+                for p=1:app.itertimemax.Value
+                    for i=2:app.n.Value
+                    for j=2:app.n.Value
+                        q=(lumdalist(k)*h^2*exp(app.uxy(i,j,p))+app.uxy(i,j-1,p)+app.uxy(i,j+1,p)+app.uxy(i-1,j,p)+app.uxy(i+1,j,p))/4;
+                        %q=log(4*u(i,j)-(u(i,j-1)+u(i,j+1)+u(i-1,j)+u(i+1,j)))-c;
+                        new_u(i,j)=q;
+                    end
+                    end
+                    app.uxy(:,:,p+1)=new_u;
+                    if(abs((app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p+1)-app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p))/app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p+1))<1e-3)
+                        is_converge=1;
+                        break;
+                    end
+                end
+                if(is_converge)
+                    ucenterlist(k)=app.uxy(floor((1+app.n.Value)/2),floor((1+app.n.Value)/2),p+1);
+                else
+                    ucenterlist(k)=0;
+                end
+            end
+            figure(1);
+            plot(lumdalist,ucenterlist);
         end
     end
 
@@ -100,7 +169,7 @@ classdef NLPDE < matlab.apps.AppBase
 
             % Create NLPDESolutionbyWenhaoXieUIFigure
             app.NLPDESolutionbyWenhaoXieUIFigure = uifigure;
-            app.NLPDESolutionbyWenhaoXieUIFigure.Position = [100 100 579 629];
+            app.NLPDESolutionbyWenhaoXieUIFigure.Position = [100 100 578 699];
             app.NLPDESolutionbyWenhaoXieUIFigure.Name = 'NLPDE Solution - by Wenhao Xie';
             app.NLPDESolutionbyWenhaoXieUIFigure.Resize = 'off';
 
@@ -110,67 +179,68 @@ classdef NLPDE < matlab.apps.AppBase
             xlabel(app.UIAxes, 'X')
             ylabel(app.UIAxes, 'Y')
             app.UIAxes.TitleFontWeight = 'bold';
-            app.UIAxes.Position = [57 173 456 429];
+            app.UIAxes.Position = [57 243 456 429];
 
             % Create Label
             app.Label = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.Label.HorizontalAlignment = 'right';
-            app.Label.Position = [37 121 53 22];
+            app.Label.Position = [37 191 53 22];
             app.Label.Text = '迭代次数';
 
             % Create itertime
             app.itertime = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
             app.itertime.Limits = [1 Inf];
             app.itertime.ValueChangedFcn = createCallbackFcn(app, @itertimeValueChanged, true);
-            app.itertime.Position = [105 121 100 22];
-            app.itertime.Value = 100;
+            app.itertime.Position = [105 191 100 22];
+            app.itertime.Value = 1000;
 
             % Create Label_2
             app.Label_2 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.Label_2.HorizontalAlignment = 'right';
-            app.Label_2.Position = [37 79 53 22];
+            app.Label_2.Position = [37 149 53 22];
             app.Label_2.Text = '细分段数';
 
             % Create n
             app.n = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
             app.n.ValueChangedFcn = createCallbackFcn(app, @nValueChanged, true);
-            app.n.Position = [105 79 100 22];
+            app.n.Position = [105 149 100 22];
             app.n.Value = 25;
 
             % Create cal
             app.cal = uibutton(app.NLPDESolutionbyWenhaoXieUIFigure, 'push');
             app.cal.ButtonPushedFcn = createCallbackFcn(app, @calButtonPushed, true);
-            app.cal.Position = [220 36 100 24];
+            app.cal.BusyAction = 'cancel';
+            app.cal.Position = [220 106 100 24];
             app.cal.Text = '计算';
 
             % Create Label_3
             app.Label_3 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.Label_3.HorizontalAlignment = 'right';
-            app.Label_3.Position = [247 108 113 22];
+            app.Label_3.Position = [247 178 113 22];
             app.Label_3.Text = '位置查看（百分比）';
 
             % Create watch
             app.watch = uislider(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.watch.ValueChangingFcn = createCallbackFcn(app, @watchValueChanging, true);
-            app.watch.Position = [381 117 150 3];
+            app.watch.Position = [381 187 150 3];
             app.watch.Value = 100;
 
             % Create lumdaEditFieldLabel
             app.lumdaEditFieldLabel = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.lumdaEditFieldLabel.HorizontalAlignment = 'right';
-            app.lumdaEditFieldLabel.Position = [52 37 38 22];
+            app.lumdaEditFieldLabel.Position = [52 107 38 22];
             app.lumdaEditFieldLabel.Text = 'lumda';
 
             % Create lumda
             app.lumda = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
             app.lumda.ValueChangedFcn = createCallbackFcn(app, @lumdaValueChanged, true);
-            app.lumda.Position = [105 37 100 22];
+            app.lumda.Position = [105 107 100 22];
             app.lumda.Value = 10;
 
             % Create Label_4
             app.Label_4 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
             app.Label_4.HorizontalAlignment = 'right';
-            app.Label_4.Position = [363 49 53 22];
+            app.Label_4.Position = [363 119 53 22];
             app.Label_4.Text = '位置查看';
 
             % Create iterstep
@@ -178,12 +248,12 @@ classdef NLPDE < matlab.apps.AppBase
             app.iterstep.Limits = [1 101];
             app.iterstep.RoundFractionalValues = 'on';
             app.iterstep.ValueChangedFcn = createCallbackFcn(app, @iterstepValueChanged, true);
-            app.iterstep.Position = [431 49 100 22];
+            app.iterstep.Position = [431 119 100 22];
             app.iterstep.Value = 1;
 
             % Create PS1Label
             app.PS1Label = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
-            app.PS1Label.Position = [385 18 146 22];
+            app.PS1Label.Position = [385 88 146 22];
             app.PS1Label.Text = 'PS:位置数值为迭代次数+1';
 
             % Create HelpButton
@@ -191,6 +261,62 @@ classdef NLPDE < matlab.apps.AppBase
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
             app.HelpButton.Position = [1 1 40 22];
             app.HelpButton.Text = 'Help';
+
+            % Create isconverge
+            app.isconverge = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.isconverge.HorizontalAlignment = 'center';
+            app.isconverge.Position = [381 222 150 22];
+            app.isconverge.Text = '';
+
+            % Create lumdaEditFieldLabel_2
+            app.lumdaEditFieldLabel_2 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.lumdaEditFieldLabel_2.HorizontalAlignment = 'right';
+            app.lumdaEditFieldLabel_2.Position = [22 41 170 22];
+            app.lumdaEditFieldLabel_2.Text = '一键导出关系图像：lumda范围';
+
+            % Create lumdamin
+            app.lumdamin = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.lumdamin.Position = [204 41 54 22];
+            app.lumdamin.Value = -100;
+
+            % Create Label_5
+            app.Label_5 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_5.Position = [272 41 20 22];
+            app.Label_5.Text = '~';
+
+            % Create lumdamax
+            app.lumdamax = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.lumdamax.Position = [291 41 54 22];
+            app.lumdamax.Value = 7.586;
+
+            % Create outputimg
+            app.outputimg = uibutton(app.NLPDESolutionbyWenhaoXieUIFigure, 'push');
+            app.outputimg.ButtonPushedFcn = createCallbackFcn(app, @outputimgButtonPushed, true);
+            app.outputimg.BusyAction = 'cancel';
+            app.outputimg.Position = [397 39 100 24];
+            app.outputimg.Text = '导出图像';
+
+            % Create Label_6
+            app.Label_6 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_6.HorizontalAlignment = 'right';
+            app.Label_6.Position = [116 14 77 22];
+            app.Label_6.Text = '最大迭代次数';
+
+            % Create itertimemax
+            app.itertimemax = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.itertimemax.Position = [204 14 54 22];
+            app.itertimemax.Value = 1000;
+
+            % Create Label_7
+            app.Label_7 = uilabel(app.NLPDESolutionbyWenhaoXieUIFigure);
+            app.Label_7.HorizontalAlignment = 'right';
+            app.Label_7.Position = [259 14 29 22];
+            app.Label_7.Text = '步长';
+
+            % Create lumdasteplength
+            app.lumdasteplength = uieditfield(app.NLPDESolutionbyWenhaoXieUIFigure, 'numeric');
+            app.lumdasteplength.Position = [291 14 54 22];
+            app.lumdasteplength.Value = 1;
         end
     end
 
